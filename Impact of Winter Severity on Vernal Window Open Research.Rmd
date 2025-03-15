@@ -30,9 +30,9 @@ abline(h = 4)
 ```
 
 ```{r Subsetting Soil Temp by Year for Algorithmic Analysis}
-AutoSoilTemp2cm1_18 <- subset(SoilTemp2cm1, Timestamp >= "2018-01-01 00:00:00" & Timestamp <= "2018-08-31 00:00:00")
-AutoSoilTemp2cm1_19 <- subset(SoilTemp2cm1, Timestamp >= "2019-01-01 00:00:00" & Timestamp <= "2019-08-31 00:00:00")
-AutoSoilTemp2cm1_20 <- subset(SoilTemp2cm1, Timestamp >= "2020-01-01 00:00:00" & Timestamp <= "2020-08-31 00:00:0")
+AutoSoilTemp2cm1_18 <- subset(SoilTemp2cm1, Timestamp >= "2018-01-01 00:00:00" & Timestamp <= "2018-07-15 00:00:00")
+AutoSoilTemp2cm1_19 <- subset(SoilTemp2cm1, Timestamp >= "2019-01-01 00:00:00" & Timestamp <= "2019-07-15 00:00:00")
+AutoSoilTemp2cm1_20 <- subset(SoilTemp2cm1, Timestamp >= "2020-01-01 00:00:00" & Timestamp <= "2020-07-15 00:00:0")
 plot(AutoSoilTemp2cm1_18$Timestamp, AutoSoilTemp2cm1_18$Soiltemp)
 ```
 
