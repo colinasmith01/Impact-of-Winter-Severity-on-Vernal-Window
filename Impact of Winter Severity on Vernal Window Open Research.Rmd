@@ -1,0 +1,162 @@
+---
+title: "Open Research Section"
+author: "Colin Smtih"
+date: "2025-03-15"
+output: html_document
+---
+
+```{r Loading in Soil Temp Data from Matric Potential Dataset}
+#use your own working directory for the line below
+MatricFull <- read.csv("/Users/colinsmith/Downloads/HBEF Work/slow_data_combined_5_2021.csv")
+Matric10cm <- as.data.frame(MatricFull$MPS6_10wp_Avg)
+TimestampMatric <- as.data.frame(MatricFull$TIMESTAMP)
+colnames(TimestampMatric) <- c("Timestamp")
+TimestampMatric <- as.POSIXct(TimestampMatric$Timestamp, format = "%Y-%m-%d %H:%M:%S", origin = "1970-01-01 00:00:00", tz = "EST")
+TimestampMatric <- as.data.frame(TimestampMatric)
+colnames(TimestampMatric) <- c("Timestamp")
+SoilTemp2cm1 <- as.data.frame(MatricFull$GRP1_Tmp2cm1_Avg)
+colnames(SoilTemp2cm1) <- c("SoilTemp")
+SoilTemp2cm1 <- cbind(TimestampMatric$Timestamp, SoilTemp2cm1$SoilTemp)
+SoilTemp2cm1 <- as.data.frame(SoilTemp2cm1)
+SoilTemp2cm1$V1 <- as.POSIXct(SoilTemp2cm1[,1], format = "%Y-%m-%d %H:%M:%S", origin = "1970-01-01 00:00:00", tz = "EST")
+colnames(SoilTemp2cm1) <- c("Timestamp", "Soiltemp")
+
+plot(SoilTemp2cm1$Timestamp, SoilTemp2cm1$Soiltemp)
+abline(h = 4)
+```
+
+```{r Subsetting Soil Temp by Year for Algorithmic Analysis}
+AutoSoilTemp2cm1_18 <- subset(SoilTemp2cm1, Timestamp >= "2018-01-01 00:00:00" & Timestamp <= "2018-07-15 00:00:00")
+AutoSoilTemp2cm1_19 <- subset(SoilTemp2cm1, Timestamp >= "2019-01-01 00:00:00" & Timestamp <= "2019-07s-15 00:00:00")
+AutoSoilTemp2cm1_20 <- subset(SoilTemp2cm1, Timestamp >= "2020-01-01 00:00:00" & Timestamp <= "2020-07-15 00:00:0")
+plot(AutoSoilTemp2cm1_18$Timestamp, AutoSoilTemp2cm1_18$Soiltemp)
+```
+
+```{r Creating Smoother Function}
+smooth <- function(x, y, Kh, step){
+Kh = Kh*86400
+step = step*86400
+lowest = min(as.numeric(x), na.rm=T)+(Kh/2)
+highest = max(as.numeric(x), na.rm=T)-(Kh/2)
+
+trend = matrix(NA, length(seq(lowest, highest, step)), 5)
+index = 1
+
+for(i in seq(lowest, highest, step)) {
+minKh = i - (Kh/2)
+maxKh = i + (Kh/2)
+a = subset(y, x <= maxKh & x >= minKh)
+trend[index,1] = i
+trend[index,2] = length(a)
+trend[index,3] = quantile(a, 0.1, na.rm=T)
+trend[index,4] = quantile(a, 0.5, na.rm=T)
+trend[index,5] = quantile(a, 0.9, na.rm=T)
+index = index+1
+}
+return(trend)
+}
+```
+
+```{r Algorithmic Analysis of Thresholds}
+nn = 100 #number of iterations to run
+index = 1
+est = matrix(NA, nn, 1)
+for(j in 1:nn){
+
+st =  1
+min.window = 1 # minimum window size for smoother
+max.window = 5 # maximum window size for smoother
+window = runif(1,  min.window, max.window)
+x = strptime(AutoSoilTemp2cm1_19$Timestamp, format="%Y-%m-%d", tz="EST")
+x.. = x$yday+(x$hour/24)+(x$min/(24*60))
+y = as.numeric(as.character(AutoSoilTemp2cm1_19$Soiltemp))
+y.. = y
+smoothed = smooth(as.numeric(x), y, window, st)
+
+x = as.POSIXlt(smoothed[,1], format = "%Y-%m-%s", origin = "1970-01-01", tz = "EST") # this needs to be a strptime or posixlt object
+y = smoothed[,4] # this is your dependent variable, ",3" for 10th%, ",4" for median, ",5" for 90th%
+
+
+threshold = runif(1, 3, 5)
+est[index] = min(subset(x$yday, y>=threshold), na.rm=T)
+index = index + 1
+}
+best.est = median(est)
+low.est =  quantile(est, 0.25)
+high.est =  quantile(est, 0.75)
+x = AutoSoilTemp2cm1_18$Timestamp
+x = strptime(x, format="%Y-%m-%d %H:%M:%S", tz="EST")
+x. = x$yday+(x$hour/24)+(x$min/(24*60))
+plot(x., AutoSoilTemp2cm1_18$Soiltemp)
+abline(v = best.est)
+```
+
+```{r Loading in Ameriflux HBEF Data for Carbon Respiration Analysis}
+Ameriflux_hbr_draft_05_04_2021 <- read.csv("/Users/colinsmith/Downloads/HBEF Work/Ameriflux_hbr_draft_05_04_2021.csv")
+Unclean_dates <- as.POSIXct(Ameriflux_hbr_draft_05_04_2021$TIMESTAMP_END, format = "%Y-%m-%d %H:%M:%S", tz = "EST")
+Unclean_dates <- as.data.frame(Unclean_dates)
+DATES_AND_FC <- cbind(Unclean_dates, FC)
+CLEAN_DATES_FC <- na.omit(DATES_AND_FC)
+colnames(CLEAN_DATES_FC) <- c("DATES_TIMES", "FC")
+FC_2018_2019_2020 <- subset(CLEAN_DATES_FC, DATES_TIMES >= "2018-01-01 00:00:00")
+FC_2020 <- subset(FC_2019_2020, DATES_TIMES >= "2020-01-01 3:00:00")
+FC_2019 <- subset(FC_2019_2020, DATES_TIMES < "2020-01-01 3:00:00")
+FC_2018 <- subset(CLEAN_DATES_FC, DATES_TIMES >= "2018-01-01 00:00:00" & DATES_TIMES <= "2018-12-31 19:30:00")
+
+
+Spring2018 <- subset(FC_2018, DATES_TIMES >= "2018-01-01" & DATES_TIMES <= "2018-07-31")
+Spring2019 <- subset(FC_2019, DATES_TIMES >= "2019-01-01" & DATES_TIMES <= "2019-07-31")
+Spring2020 <- subset(FC_2020, DATES_TIMES >= "2020-01-01" & DATES_TIMES <= "2020-07-31")
+AutoSpring2018 <- subset(Spring2018, DATES_TIMES >= "2018-01-01" & DATES_TIMES <= "2018-07-15")
+AutoSpring2019 <- subset(Spring2019, DATES_TIMES >= "2019-01-01" & DATES_TIMES <= "2019-07-15")
+AutoSpring2020 <- subset(Spring2020, DATES_TIMES >= "2020-01-01" & DATES_TIMES <= "2020-07-15")
+```
+
+
+```{r Algorithmic Analysis of Breakpoints}
+library(segmented)
+n = 1
+nn = 1000
+index = 1
+windows =  matrix(NA, n*nn, 1)
+est = matrix(NA, n*nn, 1)
+SE = matrix(NA, n*nn, 1)
+for(j in 1:nn){
+
+st =  1
+min.window = 5
+max.window = 30
+window = runif(1,  min.window, max.window)
+smoothed = smooth(AutoSpring2018$DATES_TIMES, AutoSpring2018$FC, window, st)
+
+x = as.POSIXlt(smoothed[,1], format = "%Y-%m-%s", origin = "1970-01-01", tz = "EST") # this needs to be a strptime or posixlt object
+y = smoothed[,5] # this is your dependent variable
+
+x. = x$yday+(x$hour/24)+(x$min/(24*60))
+mod = lm(y~x.)
+
+for(i in 1:n){
+BP.mod =  segmented(mod, seg.Z = ~x., npsi = 1)
+est[index,] = BP.mod$psi[,2]
+SE[index,] = BP.mod$psi[,3]
+windows[index] = window
+index = index + 1
+}
+}
+best.est = median(est)
+low.est =  quantile(est, 0.25)
+high.est =  quantile(est, 0.75)
+window.est = median(windows, na.rm = T)
+x = AutoSpring2018$DATES_TIMES
+x = strptime(x, format="%Y-%m-%d %H:%M:%S", tz="EST")
+x. = x$yday+(x$hour/24)+(x$min/(24*60))
+plot(x., smoothed[,5])
+abline(v = best.est)
+
+# Checking saturation of estimates to demonstrate stability in Monte Carlo
+write.table(est, "SpringEcoRespExample.csv", sep=",", row.names=F, col.names=F)
+
+SaturationSpringEcoResp <- read.csv("/Users/colinsmith/Downloads/HBEF Work/SpringEcoRespExample.csv", header = F)
+colnames(SaturationSpringEcoResp) <- c("Date")
+plot(c(1:1000), cumsum(SaturationSpringEcoResp$Date)/c(1:1000), ylab = "Date", xlab = "Iteration", main = "Saturation of Breakpoint Regression Algorithm for 2018 Ecosystem Resp.")
+```
